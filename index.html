@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="icon.png">
-  <title>Ethanol Mix Optimizer</title>
+  <title>E85 Optimizer (E55 Fixed)</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen;
@@ -15,12 +15,10 @@
       padding: 2em;
       max-width: 500px;
       margin: auto;
-      -webkit-user-select: none;
-      -webkit-touch-callout: none;
     }
     h2 {
       text-align: center;
-      color: #f0db4f;
+      color: #8fe388;
     }
     label {
       font-weight: bold;
@@ -67,7 +65,7 @@
   </style>
 </head>
 <body>
-  <h2>Ethanol Mix Optimizer (G80 M3)</h2>
+  <h2>E85 Optimizer (Target: E55)</h2>
 
   <label>Current Fuel Level (% of 15.6 gal):</label>
   <input type="number" id="fuelPercent" min="0" max="100" />
@@ -75,67 +73,71 @@
   <label>Current Ethanol % (from flex sensor):</label>
   <input type="number" id="currentEthanol" min="0" max="100" />
 
-  <label>Gallons of E85 (85%) Available:</label>
-  <input type="number" id="e85Available" step="0.1" min="0" max="15.6" />
+  <label>Gallons of E85 Brought (85% Ethanol):</label>
+  <input type="number" id="e85Available" min="0" max="15.6" />
 
-  <button onclick="calculateMix()">Calculate</button>
+  <button onclick="calculate()">Calculate</button>
   <button onclick="location.reload()">Reset</button>
 
   <div id="result" class="result"></div>
 
   <script>
-    function calculateMix() {
-      const tankMax = 15.6;
+    function calculate() {
+      const tankCapacity = 15.6;
       const e85Pct = 85;
       const e10Pct = 10;
-      const minEthanol = 55;
-      const maxEthanol = 57;
+      const targetEthanol = 55;
 
       const fuelPercent = parseFloat(document.getElementById('fuelPercent').value || 0);
       const currentEthanol = parseFloat(document.getElementById('currentEthanol').value || 0);
       const e85Available = parseFloat(document.getElementById('e85Available').value || 0);
 
-      const currentFuel = (fuelPercent / 100) * tankMax;
-      const ethBase = currentFuel * currentEthanol;
+      const currentVol = (fuelPercent / 100) * tankCapacity;
+      const currentEth = currentVol * currentEthanol;
 
-      let bestMatch = null;
+      const maxAddable = tankCapacity - currentVol;
+      const maxE85 = Math.min(e85Available, maxAddable);
 
-      for (let e85ToAdd = Math.min(e85Available, tankMax - currentFuel); e85ToAdd >= 0; e85ToAdd -= 0.1) {
-        const ethE85 = e85ToAdd * e85Pct;
-        const ethTotal = ethBase + ethE85;
+      let bestResult = null;
 
-        for (let target = maxEthanol; target >= minEthanol; target -= 0.1) {
-          const vol93 = (ethTotal - target * (currentFuel + e85ToAdd)) / (target - e10Pct);
-          const totalVol = currentFuel + e85ToAdd + vol93;
+      for (let e85Add = maxE85; e85Add >= 0; e85Add -= 0.01) {
+        const volAfterE85 = currentVol + e85Add;
+        const ethAfterE85 = currentEth + e85Add * e85Pct;
 
-          if (vol93 >= 0 && totalVol <= tankMax) {
-            bestMatch = {
-              e85ToAdd: e85ToAdd.toFixed(2),
-              vol93: vol93.toFixed(2),
-              totalVol: totalVol.toFixed(2),
-              target: target.toFixed(2),
-              percentFull: ((totalVol / tankMax) * 100).toFixed(1)
-            };
-            break;
-          }
+        const neededVol = tankCapacity - volAfterE85;
+        const eth93 = neededVol * e10Pct;
+
+        const totalEth = ethAfterE85 + eth93;
+        const finalVol = volAfterE85 + neededVol;
+        const finalPct = totalEth / finalVol;
+
+        if (finalVol <= tankCapacity && finalPct >= 54.9 && finalPct <= 55.1) {
+          bestResult = {
+            e85: e85Add.toFixed(2),
+            e93: neededVol.toFixed(2),
+            e93L: (neededVol * 3.785).toFixed(2),
+            totalVol: finalVol.toFixed(2),
+            percentFull: ((finalVol / tankCapacity) * 100).toFixed(1),
+            ethanol: finalPct.toFixed(2)
+          };
+          break;
         }
-        if (bestMatch) break;
       }
 
       const resultDiv = document.getElementById('result');
-      if (bestMatch) {
+      if (bestResult) {
         resultDiv.innerHTML = `
-          <strong>✅ Optimized Blend:</strong><br/>
-          ➤ Add E85: ${bestMatch.e85ToAdd} gal<br/>
-          ➤ Add 93 Octane: ${(bestMatch.vol93 * 3.785).toFixed(2)} L<br/>
-          ➤ Final Ethanol: ${bestMatch.target}%<br/>
-          ➤ Final Tank Volume: ${bestMatch.totalVol} gal (${bestMatch.percentFull}%)
+          <strong>✅ Optimized Blend (E55):</strong><br/>
+          ➤ Add E85: ${bestResult.e85} gal<br/>
+          ➤ Add 93 Octane: ${bestResult.e93L} L (${bestResult.e93} gal)<br/>
+          ➤ Final Ethanol: ${bestResult.ethanol}%<br/>
+          ➤ Final Volume: ${bestResult.totalVol} gal (${bestResult.percentFull}% of tank)
         `;
-        resultDiv.classList.add("visible");
       } else {
-        resultDiv.innerHTML = `❌ No valid blend found. Try reducing current fuel or E85 amount.`;
-        resultDiv.classList.add("visible");
+        resultDiv.innerHTML = "❌ No valid blend found for E55 without overfilling.";
       }
+
+      resultDiv.classList.add("visible");
     }
   </script>
 </body>
