@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="icon.png">
-  <title>E85 Optimizer (E55 Fixed)</title>
+  <title>E85 Optimizer (Flexible E55)</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen;
@@ -96,32 +96,29 @@
       const currentEth = currentVol * currentEthanol;
 
       const maxAddable = tankCapacity - currentVol;
-      const maxE85 = Math.min(e85Available, maxAddable);
-
       let bestResult = null;
 
-      for (let e85Add = maxE85; e85Add >= 0; e85Add -= 0.01) {
-        const volAfterE85 = currentVol + e85Add;
-        const ethAfterE85 = currentEth + e85Add * e85Pct;
+      for (let e85Add = Math.min(e85Available, maxAddable); e85Add >= 0; e85Add -= 0.01) {
+        for (let e93Add = maxAddable - e85Add; e93Add >= 0; e93Add -= 0.01) {
+          const totalVol = currentVol + e85Add + e93Add;
+          if (totalVol > tankCapacity) continue;
 
-        const neededVol = tankCapacity - volAfterE85;
-        const eth93 = neededVol * e10Pct;
+          const totalEth = currentEth + (e85Add * e85Pct) + (e93Add * e10Pct);
+          const finalPct = totalEth / totalVol;
 
-        const totalEth = ethAfterE85 + eth93;
-        const finalVol = volAfterE85 + neededVol;
-        const finalPct = totalEth / finalVol;
-
-        if (finalVol <= tankCapacity && finalPct >= 54.9 && finalPct <= 55.1) {
-          bestResult = {
-            e85: e85Add.toFixed(2),
-            e93: neededVol.toFixed(2),
-            e93L: (neededVol * 3.785).toFixed(2),
-            totalVol: finalVol.toFixed(2),
-            percentFull: ((finalVol / tankCapacity) * 100).toFixed(1),
-            ethanol: finalPct.toFixed(2)
-          };
-          break;
+          if (finalPct >= 54.9 && finalPct <= 55.1) {
+            bestResult = {
+              e85: e85Add.toFixed(2),
+              e93: e93Add.toFixed(2),
+              e93L: (e93Add * 3.785).toFixed(2),
+              totalVol: totalVol.toFixed(2),
+              percentFull: ((totalVol / tankCapacity) * 100).toFixed(1),
+              ethanol: finalPct.toFixed(2)
+            };
+            break;
+          }
         }
+        if (bestResult) break;
       }
 
       const resultDiv = document.getElementById('result');
