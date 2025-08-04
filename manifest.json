@@ -1,14 +1,20 @@
 {
-  "name": "Ethanol Mix Optimizer",
+  "name": "E85 Optimizer (Flexible E55)",
   "short_name": "E85 Optimizer",
-  "start_url": "./Ethanol Mix Optimizer.html",
+  "description": "Calculate the optimal E85 and 93 blend to reach 55% ethanol using a flexible fuel level.",
+  "start_url": "e85-optimizer-e55-flexible.html",
   "display": "standalone",
   "background_color": "#1e1e1e",
   "theme_color": "#1e1e1e",
   "icons": [
     {
-      "src": "icon.png",
-      "sizes": "180x180",
+      "src": "icon-flexible.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-flexible.png",
+      "sizes": "512x512",
       "type": "image/png"
     }
   ]
